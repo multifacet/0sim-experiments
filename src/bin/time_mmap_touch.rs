@@ -27,8 +27,9 @@ fn is_int(arg: String) -> Result<(), String> {
 
 fn main() {
     let matches = clap_app! { time_mmap_touch =>
-        (@arg SIZE: {is_int} "The number of pages to touch")
+        (@arg SIZE: +required {is_int} "The number of pages to touch")
         (@group pattern =>
+            (@attributes +required)
             (@arg zeros: -z "Fill pages with zeros")
             (@arg counter: -c "Fill pages with counter values")
         )

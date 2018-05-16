@@ -46,8 +46,8 @@ fn main() {
     // How many times to record stats (each measurement is 8B, 1GB total)?
     let nstats = (1 << 30) / 8;
 
-    // Frequency of recording stats
-    let freq = npages / nstats;
+    // Frequency of recording stats (measure every freq-th operation)
+    let freq = if npages < nstats { 1 } else { npages / nstats };
 
     // Results array
     let mut results = ResultArray::new(nstats);

@@ -1,5 +1,7 @@
 //! Touch the given number of pages. Record the total time taken, peridically record elapsed time.
 //! Fill the pages with the requested pattern.
+//!
+//! NOTE: all measurements are done with `rdtsc`, which reports cycle counts.
 
 #[macro_use]
 extern crate clap;

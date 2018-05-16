@@ -96,7 +96,7 @@ fn main() {
         }
 
         // Maybe take a measurement
-        if i % freq == 0 {
+        if freq > 0 && i % freq == 0 {
             results.push(rdtsc());
         }
 

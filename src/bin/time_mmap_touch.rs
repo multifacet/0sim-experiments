@@ -85,7 +85,6 @@ fn main() {
 
     // The value to fill memory with
     let mut val = 0;
-    let mut next = 0;
 
     // Get initial timestamp
     let first = rdtsc();
@@ -98,8 +97,7 @@ fn main() {
 
         // Maybe take a measurement
         if i % freq == 0 {
-            results[next] = rdtsc();
-            next += 1;
+            results.push(rdtsc());
         }
 
         // Update val

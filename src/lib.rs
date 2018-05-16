@@ -4,9 +4,7 @@
 
 extern crate libc;
 
-use std::{
-    mem, ops::{Index, IndexMut}, ptr, slice,
-};
+use std::{mem, ptr, slice};
 
 use libc::{
     mlock as libc_mlock, mmap as libc_mmap, munmap as libc_munmap, MAP_ANONYMOUS, MAP_FAILED,
@@ -19,7 +17,7 @@ pub const PAGE_SIZE: usize = 1 << 12; // 4KB
 /// A pre-allocated, mlocked, and prefaulted array of the given size and type for storing results.
 /// This is useful to the storage of results from interfering with measurements.
 pub struct ResultArray<T: Sized> {
-    array: Vec<T>,
+    array: Option<Vec<T>>,
 }
 
 impl<T: Sized> ResultArray<T> {
@@ -59,43 +57,34 @@ impl<T: Sized> ResultArray<T> {
         }
 
         Self {
-            array: unsafe { Vec::from_raw_parts(mapped, 0, nelem) },
+            array: unsafe { Some(Vec::from_raw_parts(mapped, 0, nelem)) },
         }
     }
 
     pub fn iter(&self) -> slice::Iter<T> {
-        self.array.iter()
+        self.array.as_ref().unwrap().iter()
+    }
+
+    pub fn push(&mut self, item: T) {
+        self.array.as_mut().unwrap().push(item);
     }
 }
 
 impl<T: Sized> Drop for ResultArray<T> {
     fn drop(&mut self) {
         // Drain the vec
-        drop(self.array.drain(0..));
+        drop(self.array.as_mut().unwrap().drain(0..));
 
         // munmap
-        let size = self.array.capacity() * mem::size_of::<T>();
-        let ptr = self.array.as_mut_ptr();
+        let mut array = self.array.take().unwrap();
+        let size = array.capacity() * mem::size_of::<T>();
+        let ptr = array.as_mut_ptr();
 
-        mem::forget(self); // never call `Vec::drop`
+        mem::forget(array); // never call `Vec::drop`
 
         unsafe {
             libc_munmap(ptr as *mut _, size);
         }
-    }
-}
-
-impl<T: Sized> Index<usize> for ResultArray<T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.array[index]
-    }
-}
-
-impl<T: Sized> IndexMut<usize> for ResultArray<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.array[index]
     }
 }
 

@@ -3,6 +3,8 @@
 //!
 //! NOTE: This should be run from a machine that has a high-bandwidth, low-latency connection with
 //! the test machine.
+//!
+//! NOTE: The server should be started with e.g. `memcached -M -m 50000` for 50GB.
 
 #[macro_use]
 extern crate clap;

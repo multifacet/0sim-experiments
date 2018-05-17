@@ -23,7 +23,7 @@ enum Pattern {
 fn is_int(arg: String) -> Result<(), String> {
     arg.to_string()
         .parse::<usize>()
-        .map_err(|_| "Not a valid tid".to_owned())
+        .map_err(|_| "Not a valid usize".to_owned())
         .map(|_| ())
 }
 

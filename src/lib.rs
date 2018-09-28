@@ -4,7 +4,7 @@
 
 extern crate libc;
 
-use std::{mem, ptr, slice};
+use std::{mem, ptr, slice, time::Duration};
 
 use libc::{
     mlock as libc_mlock, mmap as libc_mmap, munmap as libc_munmap, MAP_ANONYMOUS, MAP_FAILED,
@@ -99,4 +99,40 @@ pub fn rdtsc() -> u64 {
     }
 
     lo as u64 | ((hi as u64) << 32)
+}
+
+/// Like std::time::Instant but for rdtsc.
+pub struct Tsc {
+    tsc: u64,
+    freq: Option<usize>,
+}
+
+impl Tsc {
+    /// Capture the TSC now.
+    pub fn now() -> Self {
+        Tsc {
+            tsc: rdtsc(),
+            freq: None,
+        }
+    }
+
+    /// Set the frequency of this `Tsc`. You need to do this before using `duration_since`;
+    /// otherwise, we have no way to convert to seconds. `freq` should be in MHz.
+    pub fn set_freq(&mut self, freq: usize) {
+        self.freq = Some(freq);
+    }
+
+    /// Returns a `Duration` representing the time since `earlier`.
+    ///
+    /// # Panics
+    ///
+    /// If `earlier` is not `earlier`.
+    pub fn duration_since(&self, earlier: Self) -> Duration {
+        assert!(earlier.tsc < self.tsc);
+
+        let diff = self.tsc - earlier.tsc;
+        let nanos = diff * 1000 / self.freq.unwrap() as u64;
+
+        Duration::from_nanos(nanos)
+    }
 }

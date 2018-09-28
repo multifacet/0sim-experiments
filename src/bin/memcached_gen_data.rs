@@ -9,6 +9,7 @@
 #[macro_use]
 extern crate clap;
 extern crate memcache;
+extern crate paperexp;
 
 use std::time::Instant;
 
@@ -44,6 +45,8 @@ fn is_int(arg: String) -> Result<(), String> {
         .map(|_| ())
 }
 
+type Timestamp = Instant;
+
 fn run() -> Result<(), MemcacheError> {
     let matches = clap_app! { time_mmap_touch =>
         (@arg MEMCACHED: +required {is_addr} "The IP:PORT of the memcached instance")
@@ -68,7 +71,7 @@ fn run() -> Result<(), MemcacheError> {
     let mut client = Client::new(format!("memcache://{}", addr).as_str())?;
 
     // First time stamp
-    let mut time = Instant::now();
+    let mut time = Timestamp::now();
 
     // Actually put into the kv-store
     for i in 0..nputs {
@@ -77,8 +80,14 @@ fn run() -> Result<(), MemcacheError> {
 
         // periodically print
         if i % PRINT_INTERVAL == 0 {
-            let now = Instant::now();
-            println!("DONE {} {:?}", i, now.duration_since(time));
+            let now = Timestamp::now();
+            let diff = now.duration_since(time);
+            println!(
+                "DONE {} Duration {{ secs: {}, nanos: {} }}",
+                i,
+                diff.as_secs(),
+                diff.subsec_nanos(),
+            );
             time = now;
         }
     }

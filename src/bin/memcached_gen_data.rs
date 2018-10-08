@@ -30,6 +30,9 @@ const VAL_SIZE: usize = 1 << VAL_ORDER;
 /// A big array that constitutes the values to be `put`
 const ZEROS: &[u8] = &[0; VAL_SIZE];
 
+/// Processor frequency (3.5GHz on seclab8)
+const FREQ: usize = 3500;
+
 fn is_addr(arg: String) -> Result<(), String> {
     use std::net::ToSocketAddrs;
 
@@ -46,6 +49,7 @@ fn is_int(arg: String) -> Result<(), String> {
 }
 
 type Timestamp = Instant;
+//type Timestamp = paperexp::Tsc; // also uncomment set_freq
 
 fn run() -> Result<(), MemcacheError> {
     let matches = clap_app! { time_mmap_touch =>
@@ -81,6 +85,8 @@ fn run() -> Result<(), MemcacheError> {
         // periodically print
         if i % PRINT_INTERVAL == 0 {
             let now = Timestamp::now();
+            //let mut now = Timestamp::now();
+            //now.set_freq(FREQ);
             let diff = now.duration_since(time);
             println!(
                 "DONE {} Duration {{ secs: {}, nanos: {} }}",

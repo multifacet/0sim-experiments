@@ -101,6 +101,9 @@ pub fn rdtsc() -> u64 {
     lo as u64 | ((hi as u64) << 32)
 }
 
+/// The host elapsed time hypercall number.
+const HV_GET_HOST_ELAPSED: u64 = 9;
+
 /// Run the `vmcall 0x0009` instruction and return the value
 #[inline(always)]
 pub fn vmcall() -> u64 {

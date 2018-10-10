@@ -55,7 +55,9 @@ fn run() -> Result<(), MemcacheError> {
     let matches = clap_app! { time_mmap_touch =>
         (@arg MEMCACHED: +required {is_addr} "The IP:PORT of the memcached instance")
         (@arg SIZE: +required {is_int} "The amount of data to put (in GB)")
-    }.get_matches();
+        (@arg HYPERCALL: -h --hyperv "Pass this flag to use the hypercall")
+    }
+    .get_matches();
 
     // Get the memcached addr
     let addr = matches.value_of("MEMCACHED").unwrap();
@@ -66,10 +68,14 @@ fn run() -> Result<(), MemcacheError> {
         .unwrap()
         .to_string()
         .parse::<usize>()
-        .unwrap() << 30;
+        .unwrap()
+        << 30;
 
     // Total number of `put`s required
     let nputs = size / VAL_SIZE;
+
+    // Check if we are to account for hypervisor
+    let use_hypercall = matches.is_present("HYPERCALL");
 
     // Connect to the kv-store
     let mut client = Client::new(format!("memcache://{}", addr).as_str())?;
@@ -88,11 +94,13 @@ fn run() -> Result<(), MemcacheError> {
             //let mut now = Timestamp::now();
             //now.set_freq(FREQ);
             let diff = now.duration_since(time);
+            let hypercall = if use_hypercall { paperexp::vmcall() } else { 0 };
             println!(
-                "DONE {} Duration {{ secs: {}, nanos: {} }}",
+                "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
                 i,
                 diff.as_secs(),
                 diff.subsec_nanos(),
+                hypercall
             );
             time = now;
         }

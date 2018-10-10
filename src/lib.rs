@@ -101,6 +101,25 @@ pub fn rdtsc() -> u64 {
     lo as u64 | ((hi as u64) << 32)
 }
 
+/// Run the `vmcall 0x0009` instruction and return the value
+#[inline(always)]
+pub fn vmcall() -> u64 {
+    let hi: u32;
+    let lo: u32;
+
+    unsafe {
+        asm!("
+		mov $$0, %edx
+		vmcall"
+		: "={eax}"(lo), "={edx}"(hi)
+		: "{eax}"(HV_GET_HOST_ELAPSED)
+		:
+		: "volatile");
+    }
+
+    lo as u64 | ((hi as u64) << 32)
+}
+
 /// Like std::time::Instant but for rdtsc.
 pub struct Tsc {
     tsc: u64,

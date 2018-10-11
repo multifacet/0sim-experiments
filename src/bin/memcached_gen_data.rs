@@ -56,6 +56,7 @@ fn run() -> Result<(), MemcacheError> {
         (@arg MEMCACHED: +required {is_addr} "The IP:PORT of the memcached instance")
         (@arg SIZE: +required {is_int} "The amount of data to put (in GB)")
         (@arg HYPERCALL: -h --hyperv "Pass this flag to use the hypercall")
+    (@arg PAGE_TABLES: -p --page_tables "Pass this flag to measure page table overhead instead of latency")
     }
     .get_matches();
 
@@ -77,6 +78,10 @@ fn run() -> Result<(), MemcacheError> {
     // Check if we are to account for hypervisor
     let use_hypercall = matches.is_present("HYPERCALL");
 
+    // Check if we are to measure page table overhead instead
+    let page_tables = matches.is_present("PAGE_TABLES");
+    assert!(!use_hypercall || !page_tables);
+
     // Connect to the kv-store
     let mut client = Client::new(format!("memcache://{}", addr).as_str())?;
 
@@ -90,19 +95,23 @@ fn run() -> Result<(), MemcacheError> {
 
         // periodically print
         if i % PRINT_INTERVAL == 0 {
-            let now = Timestamp::now();
-            //let mut now = Timestamp::now();
-            //now.set_freq(FREQ);
-            let diff = now.duration_since(time);
-            let hypercall = if use_hypercall { paperexp::vmcall() } else { 0 };
-            println!(
-                "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
-                i,
-                diff.as_secs(),
-                diff.subsec_nanos(),
-                hypercall
-            );
-            time = now;
+            if page_tables {
+                println!("DONE {} {}", i, paperexp::get_page_table_kbs());
+            } else {
+                let now = Timestamp::now();
+                //let mut now = Timestamp::now();
+                //now.set_freq(FREQ);
+                let diff = now.duration_since(time);
+                let hypercall = if use_hypercall { paperexp::vmcall() } else { 0 };
+                println!(
+                        "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
+                        i,
+                        diff.as_secs(),
+                        diff.subsec_nanos(),
+                        hypercall
+                        );
+                time = now;
+            }
         }
     }
 

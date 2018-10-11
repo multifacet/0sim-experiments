@@ -7,3 +7,4 @@ authors = ["Mark Mansi <markm@cs.wisc.edu>"]
 clap = "2.31.2"
 libc = "0.2.40"
 memcache = "0.5"
+regex = "1.0.5"

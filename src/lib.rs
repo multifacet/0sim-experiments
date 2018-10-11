@@ -3,6 +3,7 @@
 #![feature(asm)]
 
 extern crate libc;
+extern crate regex;
 
 use std::{mem, ptr, slice, time::Duration};
 
@@ -157,4 +158,13 @@ impl Tsc {
 
         Duration::from_nanos(nanos)
     }
+}
+
+const RE: &str = r"PageTables:\s*(\d+) kB";
+
+pub fn get_page_table_kbs() -> usize {
+    let data = std::fs::read_to_string("/proc/meminfo").unwrap();
+    let re = regex::Regex::new(RE).unwrap();
+    let caps = re.captures(&data).unwrap();
+    caps.get(1).unwrap().as_str().parse::<usize>().unwrap()
 }

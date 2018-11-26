@@ -13,8 +13,11 @@ use std::io::Write;
 fn main() {
     const ACC: i64 = 100000;
     const EPSILON: i64 = 50;
+    const NUM_BELOW_EP: usize = 50;
 
     let mut devnull = OpenOptions::new().write(true).open("/dev/null").unwrap();
+
+    let mut tries = NUM_BELOW_EP;
 
     loop {
         let mut sum: i64 = 0;
@@ -31,7 +34,11 @@ fn main() {
         if avg.abs() > EPSILON {
             vmcall_calibrate(too_low);
         } else {
-            break;
+            if tries > 0 {
+                tries -= 1;
+            } else {
+                break;
+            }
         }
     }
 }

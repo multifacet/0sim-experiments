@@ -150,7 +150,7 @@ pub fn vmcall_calibrate(too_low: bool) {
         asm!("
 		vmcall"
 		:
-		: "{eax}"(HV_CALIBRATE), "{rbx}"(too_low)
+		: "{eax}"(HV_CALIBRATE), "{rbx}"(if too_low { 1 } else { 0 })
 		:
 		: "volatile");
     }

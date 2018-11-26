@@ -7,7 +7,7 @@
 extern crate clap;
 extern crate paperexp;
 
-use paperexp::{rdtsc, vmcall};
+use paperexp::rdtsc;
 
 fn is_int(arg: String) -> Result<(), String> {
     arg.to_string()
@@ -19,7 +19,8 @@ fn is_int(arg: String) -> Result<(), String> {
 fn main() {
     let matches = clap_app! { time_loop =>
         (@arg N: +required {is_int} "The number of iterations")
-    }.get_matches();
+    }
+    .get_matches();
 
     // How many pages to touch?
     let n = matches
@@ -38,7 +39,7 @@ fn main() {
 
     // Touch all memory
     for _ in 0..n {
-	    results.push(rdtsc());
+        results.push(rdtsc());
     }
 
     // Print results and final time stamp

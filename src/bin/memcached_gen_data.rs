@@ -102,14 +102,18 @@ fn run() -> Result<(), MemcacheError> {
                 //let mut now = Timestamp::now();
                 //now.set_freq(FREQ);
                 let diff = now.duration_since(time);
-                let hypercall = if use_hypercall { paperexp::vmcall() } else { 0 };
+                let hypercall = if use_hypercall {
+                    paperexp::vmcall_host_elapsed()
+                } else {
+                    0
+                };
                 println!(
-                        "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
-                        i,
-                        diff.as_secs(),
-                        diff.subsec_nanos(),
-                        hypercall
-                        );
+                    "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
+                    i,
+                    diff.as_secs(),
+                    diff.subsec_nanos(),
+                    hypercall
+                );
                 time = now;
             }
         }

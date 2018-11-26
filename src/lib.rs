@@ -103,11 +103,17 @@ pub fn rdtsc() -> u64 {
 }
 
 /// The host elapsed time hypercall number.
-const HV_GET_HOST_ELAPSED: u64 = 9;
+const HV_GET_HOST_ELAPSED: u64 = 0x9;
+
+/// The host nop hypercall number.
+const HV_NOP: u64 = 0xA;
+
+/// The host elapsed time calibration hypercall number.
+const HV_CALIBRATE: u64 = 0xB;
 
 /// Run the `vmcall 0x0009` instruction and return the value
 #[inline(always)]
-pub fn vmcall() -> u64 {
+pub fn vmcall_host_elapsed() -> u64 {
     let hi: u32;
     let lo: u32;
 
@@ -122,6 +128,32 @@ pub fn vmcall() -> u64 {
     }
 
     lo as u64 | ((hi as u64) << 32)
+}
+
+/// Run the `vmcall 0x000A` instruction
+#[inline(always)]
+pub fn vmcall_nop() {
+    unsafe {
+        asm!("
+		vmcall"
+		:
+		: "{eax}"(HV_NOP)
+		:
+		: "volatile");
+    }
+}
+
+/// Run the `vmcall 0x000B` instruction and with the given value
+#[inline(always)]
+pub fn vmcall_calibrate(too_low: bool) {
+    unsafe {
+        asm!("
+		vmcall"
+		:
+		: "{eax}"(HV_CALIBRATE), "{rbx}"(too_low)
+		:
+		: "volatile");
+    }
 }
 
 /// Like std::time::Instant but for rdtsc.

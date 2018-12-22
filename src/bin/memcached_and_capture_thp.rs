@@ -14,6 +14,9 @@ extern crate clap;
 extern crate memcache;
 extern crate paperexp;
 
+use std::sync;
+use std::thread;
+use std::time;
 use std::time::Instant;
 
 use memcache::{Client, MemcacheError};
@@ -85,51 +88,39 @@ fn run() -> Result<(), MemcacheError> {
         .value_of("INTERVAL")
         .unwrap()
         .to_string()
-        .parse::<usize>()
+        .parse::<u64>()
         .unwrap();
 
     // First time stamp
     let mut time = Timestamp::now();
 
     // Start a thread that does stuff
-    let stop_flag = std::sync::atomic::AtomicBool::new(false);
+    let stop_flag = sync::Arc::new(sync::atomic::AtomicBool::new(false));
 
-    let measure_thread = std::thread(move || {
-        while !stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
-            // Sleep for a while
-            std::thread::sleep(std::time::Duration::from_secs(interval));
+    let measure_thread = {
+        let stop_flag = sync::Arc::clone(&stop_flag);
 
-            // Take a measurement
-            let ops = paperexp::thp_compaction_syscall(paperexp::THPCompactionSyscallWhich::Ops);
-            let undone =
-                paperexp::thp_compaction_syscall(paperexp::THPCompactionSyscallWhich::UndoneOps);
+        thread::spawn(move || {
+            while !stop_flag.load(sync::atomic::Ordering::Relaxed) {
+                // Sleep for a while
+                thread::sleep(time::Duration::from_secs(interval));
 
-            println!("{} {}", ops, undone);
-        }
-    });
+                // Take a measurement
+                let ops =
+                    paperexp::thp_compaction_syscall(paperexp::THPCompactionSyscallWhich::Ops);
+                let undone = paperexp::thp_compaction_syscall(
+                    paperexp::THPCompactionSyscallWhich::UndoneOps,
+                );
+
+                println!("{} {}", ops, undone);
+            }
+        })
+    };
 
     // Start doing insertions
     for i in 0..nputs {
         // `put`
         client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
-
-        // periodically print
-        if i % PRINT_INTERVAL == 0 {
-            if page_tables {
-                println!("DONE {} {}", i, paperexp::get_page_table_kbs());
-            } else {
-                let now = Timestamp::now();
-                //let mut now = Timestamp::now();
-                //now.set_freq(FREQ);
-                let diff = now.duration_since(time);
-                let hypercall = if use_hypercall {
-                    paperexp::vmcall_host_elapsed()
-                } else {
-                    0
-                };
-                time = now;
-            }
-        }
     }
 
     stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);

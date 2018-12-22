@@ -200,3 +200,23 @@ pub fn get_page_table_kbs() -> usize {
     let caps = re.captures(&data).unwrap();
     caps.get(1).unwrap().as_str().parse::<usize>().unwrap()
 }
+
+pub enum THPCompactionSyscallWhich {
+    Ops,
+    UndoneOps,
+}
+
+pub const THP_COMPACTION_SYSCALL_NR: libc::c_long = 335;
+
+/// Call syscall 335 to get the number of THP compaction operations that were done and undone.
+pub fn thp_compaction_syscall(which: THPCompactionSyscallWhich) -> isize {
+    unsafe {
+        libc::syscall(
+            THP_COMPACTION_SYSCALL_NR,
+            match which {
+                THPCompactionSyscallWhich::Ops => 0,
+                THPCompactionSyscallWhich::UndoneOps => 1,
+            },
+        ) as isize
+    }
+}

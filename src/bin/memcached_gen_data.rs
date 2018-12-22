@@ -6,12 +6,9 @@
 //!
 //! NOTE: The server should be started with e.g. `memcached -M -m 50000` for 50GB.
 
-#[macro_use]
-extern crate clap;
-extern crate memcache;
-extern crate paperexp;
-
 use std::time::Instant;
+
+use clap::clap_app;
 
 use memcache::{Client, MemcacheError};
 

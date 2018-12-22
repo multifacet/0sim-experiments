@@ -3,8 +3,6 @@
 //!
 //! NOTE: all measurements are done with `rdtsc`, which reports cycle counts.
 
-extern crate paperexp;
-
 use paperexp::{rdtsc, vmcall_calibrate, vmcall_nop};
 
 use std::fs::OpenOptions;

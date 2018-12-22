@@ -9,20 +9,17 @@
 //!
 //! NOTE: The server should be started with e.g. `memcached -M -m 50000` for 50GB.
 
-#[macro_use]
-extern crate clap;
-extern crate memcache;
-extern crate paperexp;
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
-use std::sync;
-use std::thread;
-use std::time;
-use std::time::Instant;
+use clap::clap_app;
 
 use memcache::{Client, MemcacheError};
-
-/// Print a measurement every `PRINT_INTERVAL`-th `put`
-const PRINT_INTERVAL: usize = 100;
 
 /// The TTL of the key/value pairs
 const EXPIRATION: u32 = 1_000_000; // A really long time
@@ -35,9 +32,6 @@ const VAL_SIZE: usize = 1 << VAL_ORDER;
 
 /// A big array that constitutes the values to be `put`
 const ZEROS: &[u8] = &[0; VAL_SIZE];
-
-/// Processor frequency (3.5GHz on seclab8)
-const FREQ: usize = 3500;
 
 fn is_addr(arg: String) -> Result<(), String> {
     use std::net::ToSocketAddrs;
@@ -53,9 +47,6 @@ fn is_int(arg: String) -> Result<(), String> {
         .map_err(|_| "Not a valid usize".to_owned())
         .map(|_| ())
 }
-
-type Timestamp = Instant;
-//type Timestamp = paperexp::Tsc; // also uncomment set_freq
 
 fn run() -> Result<(), MemcacheError> {
     let matches = clap_app! { time_mmap_touch =>
@@ -91,19 +82,16 @@ fn run() -> Result<(), MemcacheError> {
         .parse::<u64>()
         .unwrap();
 
-    // First time stamp
-    let mut time = Timestamp::now();
-
     // Start a thread that does stuff
-    let stop_flag = sync::Arc::new(sync::atomic::AtomicBool::new(false));
+    let stop_flag = Arc::new(AtomicBool::new(false));
 
     let measure_thread = {
-        let stop_flag = sync::Arc::clone(&stop_flag);
+        let stop_flag = Arc::clone(&stop_flag);
 
-        thread::spawn(move || {
-            while !stop_flag.load(sync::atomic::Ordering::Relaxed) {
+        std::thread::spawn(move || {
+            while !stop_flag.load(Ordering::Relaxed) {
                 // Sleep for a while
-                thread::sleep(time::Duration::from_secs(interval));
+                std::thread::sleep(Duration::from_secs(interval));
 
                 // Take a measurement
                 let ops =
@@ -123,9 +111,9 @@ fn run() -> Result<(), MemcacheError> {
         client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
     }
 
-    stop_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+    stop_flag.store(true, Ordering::Relaxed);
 
-    measure_thread.join();
+    measure_thread.join().unwrap();
 
     Ok(())
 }

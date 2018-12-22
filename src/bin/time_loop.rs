@@ -3,9 +3,7 @@
 //!
 //! NOTE: all measurements are done with `rdtsc`, which reports cycle counts.
 
-#[macro_use]
-extern crate clap;
-extern crate paperexp;
+use clap::clap_app;
 
 use paperexp::rdtsc;
 

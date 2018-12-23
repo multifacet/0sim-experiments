@@ -109,6 +109,12 @@ fn run() -> Result<(), MemcacheError> {
     for i in 0..nputs {
         // `put`
         client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
+
+	// randomly delete a previously inserted key... maybe
+	if rand::random() {
+		let k = rand::random::<usize>() % (i + 1);
+		client.delete(&format!("{}", k))?;
+	}
     }
 
     stop_flag.store(true, Ordering::Relaxed);

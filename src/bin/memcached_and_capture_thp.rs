@@ -19,7 +19,7 @@ use std::{
 
 use clap::clap_app;
 
-use memcache::{Client, MemcacheError};
+use memcache::Client;
 
 /// The TTL of the key/value pairs
 const EXPIRATION: u32 = 1_000_000; // A really long time
@@ -48,7 +48,7 @@ fn is_int(arg: String) -> Result<(), String> {
         .map(|_| ())
 }
 
-fn run() -> Result<(), MemcacheError> {
+fn run() {
     let matches = clap_app! { time_mmap_touch =>
         (@arg MEMCACHED: +required {is_addr} "The IP:PORT of the memcached instance")
         (@arg SIZE: +required {is_int} "The amount of data to put (in GB)")
@@ -72,7 +72,7 @@ fn run() -> Result<(), MemcacheError> {
     let nputs = size / VAL_SIZE;
 
     // Connect to the kv-store
-    let mut client = Client::new(format!("memcache://{}", addr).as_str())?;
+    let mut client = Client::new(format!("memcache://{}", addr).as_str()).unwrap();
 
     // Interval to poll
     let interval = matches
@@ -108,25 +108,20 @@ fn run() -> Result<(), MemcacheError> {
     // Start doing insertions
     for i in 0..nputs {
         // `put`
-        client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
+        client.set(&format!("{}", i), ZEROS, EXPIRATION).unwrap();
 
-	// randomly delete a previously inserted key... maybe
-	if rand::random() {
-		let k = rand::random::<usize>() % (i + 1);
-		client.delete(&format!("{}", k))?;
-	}
+        // randomly delete a previously inserted key... maybe
+        if rand::random() {
+            let k = rand::random::<usize>() % (i + 1);
+            client.delete(&format!("{}", k)).unwrap();
+        }
     }
 
     stop_flag.store(true, Ordering::Relaxed);
 
     measure_thread.join().unwrap();
-
-    Ok(())
 }
 
 fn main() {
-    match run() {
-        Ok(()) => {}
-        Err(e) => panic!("Error: {:?}", e),
-    }
+    run();
 }

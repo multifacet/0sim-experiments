@@ -1,13 +1,15 @@
 //! Sits in a loop doing `put` operations on the given memcached instance. The keys are unique, but
 //! the values are large, all-zero values.
 //!
+//! We do N insertions, followed by N/3 deletions, followed by N/2 more insertions.
+//!
 //! In the meantime, every N seconds, it executes syscall 335 to get THP compaction stats, where N
 //! is a command line arg. The results are printed to stdout.
 //!
 //! NOTE: This should be run from a machine that has a high-bandwidth, low-latency connection with
 //! the test machine.
 //!
-//! NOTE: The server should be started with e.g. `memcached -M -m 50000` for 50GB.
+//! NOTE: The server should be started with e.g. `memcached -m 50000` for 50GB.
 
 use std::{
     sync::{
@@ -46,6 +48,18 @@ fn is_int(arg: String) -> Result<(), String> {
         .parse::<usize>()
         .map_err(|_| "Not a valid usize".to_owned())
         .map(|_| ())
+}
+
+macro_rules! try_again {
+    ($e:expr) => {{
+        if let Err(e) = $e {
+            println!("unexpected error: {:?}", e);
+            if let Err(e) = $e {
+                println!("unexpected error: {:?}", e);
+                return;
+            }
+        }
+    }}
 }
 
 fn run() {
@@ -105,16 +119,23 @@ fn run() {
         })
     };
 
-    // Start doing insertions
+    // Do the work.
     for i in 0..nputs {
         // `put`
-        client.set(&format!("{}", i), ZEROS, EXPIRATION).unwrap();
+        try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
+    }
 
+    for i in 0..nputs/3 {
         // randomly delete a previously inserted key... maybe
-        if rand::random() {
+        if rand::random() && false{
             let k = rand::random::<usize>() % (i + 1);
-            client.delete(&format!("{}", k)).unwrap();
+            try_again!(client.delete(&format!("{}", k)));
         }
+    }
+
+    for i in 0..nputs/2 {
+        // `put`
+        try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
     }
 
     stop_flag.store(true, Ordering::Relaxed);

@@ -59,7 +59,7 @@ macro_rules! try_again {
                 return;
             }
         }
-    }}
+    }};
 }
 
 fn run() {
@@ -103,7 +103,8 @@ fn run() {
         let stop_flag = Arc::clone(&stop_flag);
 
         std::thread::spawn(move || {
-            while !stop_flag.load(Ordering::Relaxed) {
+            let mut prev = 0;
+            loop {
                 // Sleep for a while
                 std::thread::sleep(Duration::from_secs(interval));
 
@@ -113,6 +114,15 @@ fn run() {
                 let undone = paperexp::thp_compaction_syscall(
                     paperexp::THPCompactionSyscallWhich::UndoneOps,
                 );
+
+                // once the flag is set, wait to stabilize...
+                if stop_flag.load(Ordering::Relaxed) {
+                    if ops == prev {
+                        break;
+                    }
+                }
+
+                prev = ops;
 
                 println!("{} {}", ops, undone);
             }
@@ -125,15 +135,13 @@ fn run() {
         try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
     }
 
-    for i in 0..nputs/3 {
-        // randomly delete a previously inserted key... maybe
-        if rand::random() && false{
-            let k = rand::random::<usize>() % (i + 1);
-            try_again!(client.delete(&format!("{}", k)));
-        }
+    // delete a third of previously inserted keys (they are random because memcached is a hashmap).
+    for i in 0..nputs / 3 {
+        try_again!(client.delete(&format!("{}", i)));
     }
 
-    for i in 0..nputs/2 {
+    // insert more keys
+    for i in nputs..(nputs + nputs / 2) {
         // `put`
         try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
     }

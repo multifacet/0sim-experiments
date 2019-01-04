@@ -135,16 +135,22 @@ fn run() {
         try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
     }
 
+    println!("NEXT!");
+
     // delete a third of previously inserted keys (they are random because memcached is a hashmap).
     for i in 0..nputs / 3 {
         try_again!(client.delete(&format!("{}", i)));
     }
+
+    println!("NEXT!");
 
     // insert more keys
     for i in nputs..(nputs + nputs / 2) {
         // `put`
         try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
     }
+
+    println!("DONE!");
 
     stop_flag.store(true, Ordering::Relaxed);
 

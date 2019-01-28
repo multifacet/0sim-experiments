@@ -5,7 +5,7 @@
 
 use clap::clap_app;
 
-use paperexp::rdtsc;
+use bmk_linux::timing::rdtsc;
 
 fn is_int(arg: String) -> Result<(), String> {
     arg.to_string()

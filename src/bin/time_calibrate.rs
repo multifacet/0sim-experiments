@@ -3,7 +3,9 @@
 //!
 //! NOTE: all measurements are done with `rdtsc`, which reports cycle counts.
 
-use paperexp::{rdtsc, vmcall_calibrate, vmcall_nop};
+use bmk_linux::timing::rdtsc;
+
+use paperexp::{vmcall_calibrate, vmcall_nop};
 
 use std::fs::OpenOptions;
 use std::io::Write;

@@ -3,16 +3,16 @@
 //!
 //! NOTE: all measurements are done with `rdtsc`, which reports cycle counts.
 
-#[macro_use]
-extern crate clap;
-extern crate libc;
-extern crate paperexp;
-
 use std::ptr;
 
-use libc::{mmap as libc_mmap, MAP_ANONYMOUS, MAP_FAILED, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use bmk_linux::{
+    resultarray::{ResultArray, PAGE_SIZE},
+    timing::rdtsc,
+};
 
-use paperexp::{rdtsc, ResultArray, PAGE_SIZE};
+use clap::clap_app;
+
+use libc::{mmap as libc_mmap, MAP_ANONYMOUS, MAP_FAILED, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 
 /// Either all zeros or counter values
 enum Pattern {
@@ -35,7 +35,8 @@ fn main() {
             (@arg zeros: -z "Fill pages with zeros")
             (@arg counter: -c "Fill pages with counter values")
         )
-    }.get_matches();
+    }
+    .get_matches();
 
     // How many pages to touch?
     let npages = matches

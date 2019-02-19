@@ -8,6 +8,8 @@
 
 use std::time::Instant;
 
+use bmk_linux::timing::{Clock, Tsc};
+
 use clap::clap_app;
 
 use memcache::{Client, MemcacheError};
@@ -27,9 +29,6 @@ const VAL_SIZE: usize = 1 << VAL_ORDER;
 /// A big array that constitutes the values to be `put`
 const ZEROS: &[u8] = &[0; VAL_SIZE];
 
-/// Processor frequency (3.5GHz on seclab8)
-const FREQ: usize = 3500;
-
 fn is_addr(arg: String) -> Result<(), String> {
     use std::net::ToSocketAddrs;
 
@@ -45,15 +44,66 @@ fn is_int(arg: String) -> Result<(), String> {
         .map(|_| ())
 }
 
-type Timestamp = Instant;
-//type Timestamp = paperexp::Tsc; // also uncomment set_freq
+fn run<C: Clock>(
+    addr: &str,
+    nputs: usize,
+    page_tables: bool,
+    use_hypercall: bool,
+    freq: usize,
+) -> Result<(), MemcacheError> {
+    // Connect to the kv-store
+    let mut client = Client::new(format!("memcache://{}", addr).as_str())?;
 
-fn run() -> Result<(), MemcacheError> {
+    // First time stamp
+    let mut time = C::now();
+
+    // Actually put into the kv-store
+    for i in 0..nputs {
+        // `put`
+        client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
+
+        // periodically print
+        if i % PRINT_INTERVAL == 0 {
+            if page_tables {
+                println!("DONE {} {}", i, paperexp::get_page_table_kbs());
+            } else {
+                let mut now = C::now();
+                now.set_scaling_factor(freq);
+                let diff = now.duration_since(time);
+                let hypercall = if use_hypercall {
+                    paperexp::vmcall_host_elapsed()
+                } else {
+                    0
+                };
+                println!(
+                    "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
+                    i,
+                    diff.as_secs(),
+                    diff.subsec_nanos(),
+                    hypercall
+                );
+                time = now;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn main() {
     let matches = clap_app! { time_mmap_touch =>
-        (@arg MEMCACHED: +required {is_addr} "The IP:PORT of the memcached instance")
-        (@arg SIZE: +required {is_int} "The amount of data to put (in GB)")
-        (@arg HYPERCALL: -h --hyperv "Pass this flag to use the hypercall")
-    (@arg PAGE_TABLES: -p --page_tables "Pass this flag to measure page table overhead instead of latency")
+    (@arg MEMCACHED: +required {is_addr}
+     "The IP:PORT of the memcached instance")
+    (@arg SIZE: +required {is_int}
+     "The amount of data to put (in GB)")
+    (@arg HYPERCALL: -h --hyperv
+     "Pass this flag to use the hypercall")
+    (@arg PAGE_TABLES: -p --page_tables
+     "Pass this flag to measure page table overhead instead of latency")
+    (@arg FREQ: -f --freq +takes_value {is_int}
+     "Pass this flag to use `rdtsc` as the clock source. Use the given frequency \
+      to convert clock ticks to seconds. The frequency should be stable (e.g. via \
+      cpupower and pinning. Frequency should be an integer in MHz.")
     }
     .get_matches();
 
@@ -79,48 +129,19 @@ fn run() -> Result<(), MemcacheError> {
     let page_tables = matches.is_present("PAGE_TABLES");
     assert!(!use_hypercall || !page_tables);
 
-    // Connect to the kv-store
-    let mut client = Client::new(format!("memcache://{}", addr).as_str())?;
+    let scaling_factor = if let Some(freq) = matches.value_of("FREQ") {
+        freq.to_string().parse::<usize>().unwrap()
+    } else {
+        1
+    };
 
-    // First time stamp
-    let mut time = Timestamp::now();
+    let result = if matches.is_present("FREQ") {
+        run::<Tsc>(addr, nputs, page_tables, use_hypercall, scaling_factor)
+    } else {
+        run::<Instant>(addr, nputs, page_tables, use_hypercall, scaling_factor)
+    };
 
-    // Actually put into the kv-store
-    for i in 0..nputs {
-        // `put`
-        client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
-
-        // periodically print
-        if i % PRINT_INTERVAL == 0 {
-            if page_tables {
-                println!("DONE {} {}", i, paperexp::get_page_table_kbs());
-            } else {
-                let now = Timestamp::now();
-                //let mut now = Timestamp::now();
-                //now.set_freq(FREQ);
-                let diff = now.duration_since(time);
-                let hypercall = if use_hypercall {
-                    paperexp::vmcall_host_elapsed()
-                } else {
-                    0
-                };
-                println!(
-                    "DONE {} Duration {{ secs: {}, nanos: {} }} {}",
-                    i,
-                    diff.as_secs(),
-                    diff.subsec_nanos(),
-                    hypercall
-                );
-                time = now;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn main() {
-    match run() {
+    match result {
         Ok(()) => {}
         Err(e) => panic!("Error: {:?}", e),
     }

@@ -62,7 +62,7 @@ fn run<C: Clock>(
         // `put`
         //
         // DEBUGGING: delay these operations to show that they can be delayed.
-        if !(i >= 98300 && i <= 98400) {
+        if !(i >= 98300 && i <= 100000) {
             client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
         }
 

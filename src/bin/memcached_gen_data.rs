@@ -60,11 +60,7 @@ fn run<C: Clock>(
     // Actually put into the kv-store
     for i in 0..nputs {
         // `put`
-        //
-        // DEBUGGING: delay these operations to show that they can be delayed.
-        if !(i >= 98300 && i <= 100000) {
-            client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
-        }
+        client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
 
         // periodically print
         if i % PRINT_INTERVAL == 0 {

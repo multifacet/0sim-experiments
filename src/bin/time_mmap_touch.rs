@@ -12,7 +12,9 @@ use bmk_linux::{
 
 use clap::clap_app;
 
-use libc::{mmap as libc_mmap, MAP_ANONYMOUS, MAP_FAILED, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use libc::{
+    mmap as libc_mmap, MAP_ANONYMOUS, MAP_FAILED, MAP_POPULATE, MAP_PRIVATE, PROT_READ, PROT_WRITE,
+};
 
 /// Either all zeros or counter values
 enum Pattern {
@@ -30,6 +32,7 @@ fn is_int(arg: String) -> Result<(), String> {
 fn main() {
     let matches = clap_app! { time_mmap_touch =>
         (@arg SIZE: +required {is_int} "The number of pages to touch")
+        (@arg PREFAULT: -p --prefault "If present, the bmk will prefault memory before beginning.")
         (@group pattern =>
             (@attributes +required)
             (@arg zeros: -z "Fill pages with zeros")
@@ -64,6 +67,9 @@ fn main() {
         unreachable!()
     };
 
+    // Should we prefault?
+    let prefault = matches.is_present("PREFAULT");
+
     ///////////////////////////////////////////////////////////////////////////
     // Start the experiment
     ///////////////////////////////////////////////////////////////////////////
@@ -74,7 +80,11 @@ fn main() {
             ptr::null_mut(),
             npages * PAGE_SIZE,
             PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS,
+            if prefault {
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE
+            } else {
+                MAP_PRIVATE | MAP_ANONYMOUS
+            },
             -1,
             0,
         );

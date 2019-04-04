@@ -11,6 +11,9 @@ const HV_NOP: u64 = 0xA;
 /// The host elapsed time calibration hypercall number.
 const HV_CALIBRATE: u64 = 0xB;
 
+/// The host elapsed time calibration hypercall number.
+const HV_PF_TIME: u64 = 0xC;
+
 /// Run the `vmcall 0x0009` instruction and return the value
 #[inline(always)]
 pub fn vmcall_host_elapsed() -> u64 {
@@ -51,6 +54,19 @@ pub fn vmcall_calibrate(too_low: bool) {
 		vmcall"
 		:
 		: "{eax}"(HV_CALIBRATE), "{rbx}"(if too_low { 1 } else { 0 })
+		:
+		: "volatile");
+    }
+}
+
+/// Run the `vmcall 0x000C` instruction
+#[inline(always)]
+pub fn vmcall_pf_time(pf_time: u64) {
+    unsafe {
+        asm!("
+		vmcall"
+		:
+		: "{eax}"(HV_PF_TIME), "{rbx}"(pf_time)
 		:
 		: "volatile");
     }

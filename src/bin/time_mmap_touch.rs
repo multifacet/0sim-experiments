@@ -16,6 +16,8 @@ use libc::{
     mmap as libc_mmap, MAP_ANONYMOUS, MAP_FAILED, MAP_POPULATE, MAP_PRIVATE, PROT_READ, PROT_WRITE,
 };
 
+const PF_TIME: u64 = 1000; // cyc
+
 /// Either all zeros or counter values
 enum Pattern {
     Zeros,
@@ -98,6 +100,8 @@ fn main() {
 
     // The value to fill memory with
     let mut val = 0;
+
+    paperexp::vmcall_pf_time(PF_TIME);
 
     // Get initial timestamp
     let first = rdtsc();

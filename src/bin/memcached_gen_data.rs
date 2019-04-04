@@ -92,18 +92,20 @@ fn run<C: Clock>(
 
 fn main() {
     let matches = clap_app! { time_mmap_touch =>
-    (@arg MEMCACHED: +required {is_addr}
-     "The IP:PORT of the memcached instance")
-    (@arg SIZE: +required {is_int}
-     "The amount of data to put (in GB)")
-    (@arg HYPERCALL: -h --hyperv
-     "Pass this flag to use the hypercall")
-    (@arg PAGE_TABLES: -p --page_tables
-     "Pass this flag to measure page table overhead instead of latency")
-    (@arg FREQ: -f --freq +takes_value {is_int}
-     "Pass this flag to use `rdtsc` as the clock source. Use the given frequency \
-      to convert clock ticks to seconds. The frequency should be stable (e.g. via \
-      cpupower and pinning. Frequency should be an integer in MHz.")
+        (@arg MEMCACHED: +required {is_addr}
+         "The IP:PORT of the memcached instance")
+        (@arg SIZE: +required {is_int}
+         "The amount of data to put (in GB)")
+        (@arg HYPERCALL: -h --hyperv
+         "Pass this flag to use the hypercall")
+        (@arg PAGE_TABLES: -p --page_tables
+         "Pass this flag to measure page table overhead instead of latency")
+        (@arg FREQ: -f --freq +takes_value {is_int}
+         "Pass this flag to use `rdtsc` as the clock source. Use the given frequency \
+          to convert clock ticks to seconds. The frequency should be stable (e.g. via \
+          cpupower and pinning. Frequency should be an integer in MHz.")
+        (@arg PFTIME: --pftime +takes_value {is_int}
+         "If present, does a hypercall toet the PF_TIME to the given value.")
     }
     .get_matches();
 
@@ -134,6 +136,12 @@ fn main() {
     } else {
         1
     };
+
+    // Set the PF time.
+    if let Some(pf_time) = matches.value_of("PFTIME") {
+        let pf_time = pf_time.to_string().parse::<u64>().unwrap();
+        paperexp::vmcall_pf_time(pf_time);
+    }
 
     let result = if matches.is_present("FREQ") {
         run::<Tsc>(addr, nputs, page_tables, use_hypercall, scaling_factor)

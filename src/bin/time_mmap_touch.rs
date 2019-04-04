@@ -16,8 +16,6 @@ use libc::{
     mmap as libc_mmap, MAP_ANONYMOUS, MAP_FAILED, MAP_POPULATE, MAP_PRIVATE, PROT_READ, PROT_WRITE,
 };
 
-const PF_TIME: u64 = 1000; // cyc
-
 /// Either all zeros or counter values
 enum Pattern {
     Zeros,
@@ -35,6 +33,8 @@ fn main() {
     let matches = clap_app! { time_mmap_touch =>
         (@arg SIZE: +required {is_int} "The number of pages to touch")
         (@arg PREFAULT: -p --prefault "If present, the bmk will prefault memory before beginning.")
+        (@arg PFTIME: --pftime +takes_value {is_int}
+         "If present, does a hypercall toet the PF_TIME to the given value.")
         (@group pattern =>
             (@attributes +required)
             (@arg zeros: -z "Fill pages with zeros")
@@ -101,7 +101,11 @@ fn main() {
     // The value to fill memory with
     let mut val = 0;
 
-    paperexp::vmcall_pf_time(PF_TIME);
+    // Set the PF time.
+    if let Some(pf_time) = matches.value_of("PFTIME") {
+        let pf_time = pf_time.to_string().parse::<u64>().unwrap();
+        paperexp::vmcall_pf_time(pf_time);
+    }
 
     // Get initial timestamp
     let first = rdtsc();

@@ -23,6 +23,8 @@ use clap::clap_app;
 
 use memcache::Client;
 
+use paperexp::CompactInstrumentationStats;
+
 /// The TTL of the key/value pairs
 const EXPIRATION: u32 = 1_000_000; // A really long time
 
@@ -109,18 +111,19 @@ fn run() {
                 std::thread::sleep(Duration::from_secs(interval));
 
                 // Take a measurement
-                let stats = paperexp::thp_compact_instrumentation();
+                let CompactInstrumentationStats { ops, undos } =
+                    paperexp::thp_compact_instrumentation();
 
                 // once the flag is set, wait to stabilize...
                 if stop_flag.load(Ordering::Relaxed) {
-                    if stats.ops == prev {
+                    if ops == prev {
                         break;
                     }
                 }
 
-                prev = stats.ops;
+                prev = ops;
 
-                println!("{} {}", stats.ops, stats.undos);
+                println!("{} {}", ops, undos);
             }
         })
     };

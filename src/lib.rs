@@ -79,22 +79,26 @@ pub fn get_page_table_kbs() -> usize {
         .kilobytes()
 }
 
-pub enum THPCompactionSyscallWhich {
-    Ops,
-    UndoneOps,
+/// Stats from `proc/compact_instrumentation`.
+pub struct CompactInstrumentationStats {
+    /// Number of operations done (including undos).
+    pub ops: usize,
+
+    /// Number of operations undone.
+    pub undos: usize,
 }
 
-pub const THP_COMPACTION_SYSCALL_NR: libc::c_long = 335;
+/// Read the contents of `/proc/compact_instrumentation`.
+pub fn thp_compact_instrumentation() -> CompactInstrumentationStats {
+    const COMPACT_INSTRUMENTATION_PATH: &str = "/proc/compact_instrumentation";
 
-/// Call syscall 335 to get the number of THP compaction operations that were done and undone.
-pub fn thp_compaction_syscall(which: THPCompactionSyscallWhich) -> isize {
-    unsafe {
-        libc::syscall(
-            THP_COMPACTION_SYSCALL_NR,
-            match which {
-                THPCompactionSyscallWhich::Ops => 0,
-                THPCompactionSyscallWhich::UndoneOps => 1,
-            },
-        ) as isize
+    let stats =
+        std::fs::read_to_string(COMPACT_INSTRUMENTATION_PATH).expect("unable to read procfs");
+
+    let mut stats = stats.split_whitespace();
+
+    CompactInstrumentationStats {
+        ops: stats.next().unwrap().parse().unwrap(),
+        undos: stats.next().unwrap().parse().unwrap(),
     }
 }

@@ -109,22 +109,18 @@ fn run() {
                 std::thread::sleep(Duration::from_secs(interval));
 
                 // Take a measurement
-                let ops =
-                    paperexp::thp_compaction_syscall(paperexp::THPCompactionSyscallWhich::Ops);
-                let undone = paperexp::thp_compaction_syscall(
-                    paperexp::THPCompactionSyscallWhich::UndoneOps,
-                );
+                let stats = paperexp::thp_compact_instrumentation();
 
                 // once the flag is set, wait to stabilize...
                 if stop_flag.load(Ordering::Relaxed) {
-                    if ops == prev {
+                    if stats.ops == prev {
                         break;
                     }
                 }
 
-                prev = ops;
+                prev = stats.ops;
 
-                println!("{} {}", ops, undone);
+                println!("{} {}", stats.ops, stats.undos);
             }
         })
     };

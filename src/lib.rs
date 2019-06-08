@@ -1,6 +1,6 @@
 //! Some utilities for experiments. These are mostly wrappers around libc.
 
-#![feature(asm)]
+#![feature(asm, maybe_uninit, maybe_uninit_ref)]
 
 /// The host elapsed time hypercall number.
 const HV_GET_HOST_ELAPSED: u64 = 0x9;
@@ -100,5 +100,30 @@ pub fn thp_compact_instrumentation() -> CompactInstrumentationStats {
     CompactInstrumentationStats {
         ops: stats.next().unwrap().parse().unwrap(),
         undos: stats.next().unwrap().parse().unwrap(),
+    }
+}
+
+/// Pin the calling thread to the given logical core.
+///
+/// # Panics
+///
+/// If an error is returned from `sched_setaffinity`.
+pub fn set_cpu(core: usize) {
+    unsafe {
+        let mut cpuset = std::mem::MaybeUninit::<libc::cpu_set_t>::uninit();
+        libc::CPU_ZERO(cpuset.get_mut());
+        let mut cpuset = cpuset.assume_init();
+        libc::CPU_SET(core, &mut cpuset);
+
+        let res = libc::sched_setaffinity(
+            /* self */ 0,
+            std::mem::size_of::<libc::cpu_set_t>(),
+            &cpuset,
+        );
+
+        if res != 0 {
+            let err = errno::errno();
+            panic!("sched_setaffinity failed: {}", err);
+        }
     }
 }

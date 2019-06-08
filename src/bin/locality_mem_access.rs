@@ -13,6 +13,13 @@ use libc::{
 
 use rand::Rng;
 
+fn is_usize(arg: String) -> Result<(), String> {
+    arg.to_string()
+        .parse::<usize>()
+        .map_err(|_| "Not a valid usize".to_owned())
+        .map(|_| ())
+}
+
 fn main() {
     let matches = clap_app! { locality_mem_access =>
         (about: "Measures the latency difference in memory access patterns with strong and poor
@@ -22,11 +29,40 @@ fn main() {
             (@arg local: -l "Access memory with strong locality")
             (@arg nonlocal: -n "Access memory with poor locality")
         )
-
+        (@arg MULTITHREAD: -t --threads +takes_value {is_usize}
+         "(Optional) If passed with a value > 1, the bmk runs in multithreaded mode with the given \
+         number of threads. Each thread gets it's own region of memory.")
     }
     .get_matches();
 
     let is_local = matches.is_present("local");
+
+    let threads = matches
+        .value_of("MULTITHREAD")
+        .map(|value| value.parse().unwrap());
+
+    let ncpus = get_num_cpus();
+
+    if let Some(threads) = threads {
+        let mut handles = vec![];
+
+        for i in 0..threads {
+            handles.push(std::thread::spawn(move || do_work(is_local, i % ncpus)));
+        }
+
+        for handle in handles.into_iter() {
+            handle.join().unwrap();
+        }
+    } else {
+        // Single threaded
+        do_work(is_local, 0);
+    }
+}
+
+/// Actually do the work of the benchmark. Pin the work to the given cpu core.
+fn do_work(is_local: bool, core: usize) {
+    // CPU pinning
+    paperexp::set_cpu(core);
 
     // Mmap memory for the experiment
     let mapped = unsafe {
@@ -84,4 +120,24 @@ fn main() {
             println!("{}", end - start);
         }
     }
+}
+
+fn get_num_cpus() -> usize {
+    let re = regex::Regex::new(r#"CPU\(s\):\s+(\d+)"#).unwrap();
+
+    let out = std::process::Command::new("lscpu").output().unwrap();
+    let out = std::str::from_utf8(&out.stdout).unwrap();
+
+    let cpus = re
+        .captures_iter(out)
+        .next()
+        .unwrap()
+        .get(1)
+        .unwrap()
+        .as_str()
+        .to_owned()
+        .parse::<usize>()
+        .unwrap();
+
+    cpus
 }

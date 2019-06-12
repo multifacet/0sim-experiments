@@ -103,6 +103,15 @@ pub fn thp_compact_instrumentation() -> CompactInstrumentationStats {
     }
 }
 
+/// Trigger the given number of compaction attempts.
+pub fn trigger_compaction(n: usize) -> Result<(), std::io::Error> {
+    const COMPACT_TRIGGER_PATH: &str = "/proc/compact_trigger";
+
+    let s = format!("{}", n);
+
+    std::fs::write(COMPACT_TRIGGER_PATH, s)
+}
+
 /// Pin the calling thread to the given logical core.
 ///
 /// # Panics

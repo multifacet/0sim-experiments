@@ -12,12 +12,16 @@
 //! NOTE: The server should be started with e.g. `memcached -m 50000` for 50GB.
 
 use std::{
+    fs::OpenOptions,
+    io::{BufWriter, Write},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
     time::Duration,
 };
+
+use bmk_linux::timing::rdtsc;
 
 use clap::clap_app;
 
@@ -68,7 +72,9 @@ fn run() {
     let matches = clap_app! { time_mmap_touch =>
         (@arg MEMCACHED: +required {is_addr} "The IP:PORT of the memcached instance")
         (@arg SIZE: +required {is_int} "The amount of data to put (in GB)")
-        (@arg INTERVAL: +required {is_int} "The amount of time between calls to the syscall")
+        (@arg INTERVAL: +required {is_int} "The interval at which to read compaction stats")
+        (@arg OUTFILE: +required "The location to write memcached performance measurements to")
+        (@arg CONTINUAL: --continual_compaction "Continually trigger compaction")
     }
     .get_matches();
 
@@ -97,6 +103,10 @@ fn run() {
         .to_string()
         .parse::<u64>()
         .unwrap();
+
+    let memcached_latency_file = matches.value_of("OUTFILE").unwrap();
+
+    let continual_compaction = matches.is_present("CONTINUAL");
 
     // Start a thread that does stuff
     let stop_flag = Arc::new(AtomicBool::new(false));
@@ -128,25 +138,67 @@ fn run() {
         })
     };
 
+    // A thread that triggers continual compaction
+    let compact_thread = if continual_compaction {
+        let stop_flag = Arc::clone(&stop_flag);
+
+        Some(std::thread::spawn(move || {
+            loop {
+                // Take a measurement
+                paperexp::trigger_compaction(512).expect("trigger compaction failed");
+
+                // once the flag is set, exit
+                if stop_flag.load(Ordering::Relaxed) {
+                    break;
+                }
+            }
+        }))
+    } else {
+        None
+    };
+
+    // Open a file for the latency measurements
+    let memcached_latency_file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(memcached_latency_file)
+        .unwrap();
+    let mut memcached_latency_file = BufWriter::new(memcached_latency_file);
+
     // Do the work.
     for i in 0..nputs {
+        let start = rdtsc();
+
         // `put`
         try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
+
+        write!(memcached_latency_file, "{}\n", rdtsc() - start).unwrap();
     }
 
     println!("NEXT!");
+    writeln!(memcached_latency_file, "NEXT!").unwrap();
 
     // delete a third of previously inserted keys (they are random because memcached is a hashmap).
     for i in 0..nputs / 3 {
+        let start = rdtsc();
+
         try_again!(client.delete(&format!("{}", i)));
+
+        write!(memcached_latency_file, "{}\n", rdtsc() - start).unwrap();
     }
 
     println!("NEXT!");
+    writeln!(memcached_latency_file, "NEXT!").unwrap();
 
     // insert more keys
     for i in nputs..(nputs + nputs / 2) {
+        let start = rdtsc();
+
         // `put`
         try_again!(client.set(&format!("{}", i), ZEROS, EXPIRATION));
+
+        write!(memcached_latency_file, "{}\n", rdtsc() - start).unwrap();
     }
 
     println!("DONE!");
@@ -154,6 +206,9 @@ fn run() {
     stop_flag.store(true, Ordering::Relaxed);
 
     measure_thread.join().unwrap();
+    if let Some(compact_thread) = compact_thread {
+        compact_thread.join().unwrap();
+    }
 }
 
 fn main() {

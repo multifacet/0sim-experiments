@@ -1,6 +1,6 @@
 //! Some utilities for experiments. These are mostly wrappers around libc.
 
-#![feature(asm, maybe_uninit, maybe_uninit_ref)]
+#![feature(asm, maybe_uninit_ref)]
 
 /// The host elapsed time hypercall number.
 const HV_GET_HOST_ELAPSED: u64 = 0x9;

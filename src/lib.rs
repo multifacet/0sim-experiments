@@ -104,10 +104,28 @@ pub fn thp_compact_instrumentation() -> CompactInstrumentationStats {
 }
 
 /// Trigger the given number of compaction attempts.
-pub fn trigger_compaction(n: usize) -> Result<(), std::io::Error> {
+pub fn trigger_compaction(n: u16) -> Result<(), std::io::Error> {
     const COMPACT_TRIGGER_PATH: &str = "/proc/compact_trigger";
 
-    let s = format!("{}", n);
+    // Needs to be a C-FFI-compatible string. So we will manually format `n` into a null-terminated
+    // ASCII string.
+    //
+    // We start the least-significant digit and insert a the front...
+    let mut s = Vec::with_capacity(6);
+    let mut val = n;
+
+    while val > 0 {
+        // extract the digit at place
+        let digit_at_place: u8 = (val % 10) as u8;
+
+        let c = b'0' + digit_at_place;
+        s.insert(0, c); // front = most significant digit
+
+        val /= 10;
+    }
+
+    // null terminate
+    s.push(0);
 
     std::fs::write(COMPACT_TRIGGER_PATH, s)
 }

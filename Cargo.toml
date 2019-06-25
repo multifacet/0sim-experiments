@@ -10,5 +10,6 @@ libc = "0.2.48"
 errno = "0.2.4"
 memcache = "0.5"
 regex = "1.0.5"
+redis = "0.10.0"
 rand = "0.6.1"
 bmk_linux = { git = "https://github.com/mark-i-m/bmk_linux" }

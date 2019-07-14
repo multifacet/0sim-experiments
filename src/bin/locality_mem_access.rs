@@ -29,6 +29,8 @@ fn main() {
             (@arg local: -l "Access memory with strong locality")
             (@arg nonlocal: -n "Access memory with poor locality")
         )
+        (@arg N: +required {is_usize}
+         "The number of iterations (preferably divisible by 8).")
         (@arg MULTITHREAD: -t --threads +takes_value {is_usize}
          "(Optional) If passed with a value > 1, the bmk runs in multithreaded mode with the given \
          number of threads. Each thread gets it's own region of memory.")
@@ -41,13 +43,15 @@ fn main() {
         .value_of("MULTITHREAD")
         .map(|value| value.parse().unwrap());
 
+    let n = matches.value_of("N").unwrap().parse().unwrap();
+
     let ncpus = get_num_cpus();
 
     if let Some(threads) = threads {
         let mut handles = vec![];
 
         for i in 0..threads {
-            handles.push(std::thread::spawn(move || do_work(is_local, i % ncpus)));
+            handles.push(std::thread::spawn(move || do_work(is_local, i % ncpus, n)));
         }
 
         for handle in handles.into_iter() {
@@ -55,12 +59,12 @@ fn main() {
         }
     } else {
         // Single threaded
-        do_work(is_local, 0);
+        do_work(is_local, 0, n);
     }
 }
 
 /// Actually do the work of the benchmark. Pin the work to the given cpu core.
-fn do_work(is_local: bool, core: usize) {
+fn do_work(is_local: bool, core: usize, n: usize) {
     // CPU pinning
     paperexp::set_cpu(core);
 
@@ -82,16 +86,16 @@ fn do_work(is_local: bool, core: usize) {
         addr as *mut u8
     };
 
-    // Warmup for first phase: touch the first 32kb of the memory (8 pages)
+    // Warmup phase: 1 word of the first 8 pages.
     for i in 0..8 {
         unsafe {
             *mapped.offset((i << 12) as isize) = 7;
         }
     }
 
-    // Now touch these a lot and time it
     if is_local {
-        for _ in 0..10000 {
+        // Touch these warm cache lines a lot and time it
+        for _ in 0..(n / 8) {
             for i in 0..8 {
                 let start = rdtsc();
                 unsafe {
@@ -105,10 +109,10 @@ fn do_work(is_local: bool, core: usize) {
     } else {
         let mut rng = rand::thread_rng();
 
-        // Now do something that has terrible performance
+        // Do something that has terrible performance
         // - lots of cache and TLB misses
         // - random behavior to avoid prefetchers
-        for _ in 0..80000 {
+        for _ in 0..n {
             let i: isize = rng.gen_range(0, (4 << 30) >> 12);
 
             let start = rdtsc();

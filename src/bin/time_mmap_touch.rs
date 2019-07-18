@@ -54,8 +54,13 @@ fn main() {
     // How many times to record stats (each measurement is 8B, 1GB total)?
     let nstats = (1 << 30) / 8;
 
-    // Frequency of recording stats (measure every freq-th operation)
-    let freq = if npages < nstats { 1 } else { npages / nstats };
+    // Frequency of recording stats (measure every freq-th operation).
+    let freq = if npages < nstats {
+        1
+    } else {
+        // We need to round up to account for a possible remainder.
+        npages / nstats + 1
+    };
 
     // Results array
     let mut results = ResultArray::new(nstats);
@@ -117,7 +122,7 @@ fn main() {
         }
 
         // Maybe take a measurement
-        if freq > 0 && i % freq == 0 {
+        if i % freq == 0 {
             results.push(rdtsc());
         }
 

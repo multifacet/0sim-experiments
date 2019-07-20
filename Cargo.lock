@@ -44,7 +44,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bmk_linux"
 version = "0.2.0"
-source = "git+https://github.com/mark-i-m/bmk_linux#acb7c4ae2b5cba13111f36743ce08e68fd7488d9"
+source = "git+https://github.com/mark-i-m/bmk_linux#3f42c973cf5c7ef59f4725b94681fe8ab13e927b"
 dependencies = [
  "libc 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

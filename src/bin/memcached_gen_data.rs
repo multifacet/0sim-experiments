@@ -20,11 +20,9 @@ const PRINT_INTERVAL: usize = 100;
 /// The TTL of the key/value pairs
 const EXPIRATION: u32 = 1_000_000; // A really long time
 
-/// The order of magnitude of the size of the values
-const VAL_ORDER: usize = 19; // 20 seems to give a "too large" error
-
-/// 2^`VAL_ORDER`
-const VAL_SIZE: usize = 1 << VAL_ORDER;
+/// The size of a single value in a key value pair. This is fine tuned so that there is no wasted
+/// space if memcached is started with `-f 1.11`.
+const VAL_SIZE: usize = 523800;
 
 /// A big array that constitutes the values to be `put`
 const ZEROS: &[u8] = &[0; VAL_SIZE];

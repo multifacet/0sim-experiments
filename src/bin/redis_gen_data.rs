@@ -49,7 +49,7 @@ fn run<C: Clock>(
     freq: usize,
 ) -> RedisResult<()> {
     // Connect to the kv-store
-    let client = Client::open(format!("redis://{}", addr).as_str())?;
+    let mut client = Client::open(format!("redis://{}", addr).as_str())?;
 
     // First time stamp
     let mut time = C::now();
@@ -57,7 +57,15 @@ fn run<C: Clock>(
     // Actually put into the kv-store
     for i in 0..nputs {
         // `put`
-        let _ = client.set(i, ZEROS)?;
+        let result: Result<String, _> = client.set(i, ZEROS);
+
+        // If there is an error. Try to reconnect and try again. If that still fails, then fail the
+        // workload all together.
+        if let Err(e) = result {
+            println!("Error {}", e);
+            client = Client::open(format!("redis://{}", addr).as_str())?;
+            client.set(i, ZEROS)?;
+        }
 
         // periodically print
         if i % PRINT_INTERVAL == 0 {

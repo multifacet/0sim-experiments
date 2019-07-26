@@ -26,14 +26,6 @@ const VAL_SIZE: usize = 1 << VAL_ORDER;
 /// A big array that constitutes the values to be `put`
 const ZEROS: &[u8] = &[0; VAL_SIZE];
 
-fn is_addr(arg: String) -> Result<(), String> {
-    use std::net::ToSocketAddrs;
-
-    arg.to_socket_addrs()
-        .map_err(|_| "Not a valid IP:Port".to_owned())
-        .map(|_| ())
-}
-
 fn is_int(arg: String) -> Result<(), String> {
     arg.to_string()
         .parse::<usize>()
@@ -49,7 +41,7 @@ fn run<C: Clock>(
     freq: usize,
 ) -> RedisResult<()> {
     // Connect to the kv-store
-    let mut client = Client::open(format!("redis://{}", addr).as_str())?;
+    let mut client = Client::open(addr)?;
 
     // First time stamp
     let mut time = C::now();
@@ -63,7 +55,7 @@ fn run<C: Clock>(
         // workload all together.
         if let Err(e) = result {
             println!("Error {}", e);
-            client = Client::open(format!("redis://{}", addr).as_str())?;
+            client = Client::open(addr)?;
             client.set(i, ZEROS)?;
         }
 
@@ -97,8 +89,8 @@ fn run<C: Clock>(
 
 fn main() {
     let matches = clap_app! { time_mmap_touch =>
-        (@arg REDIS: +required {is_addr}
-         "The IP:PORT of the redis instance")
+        (@arg REDIS: +required
+         "The redis://<IP>:<PORT> or unix:<UDS path> of the redis instance")
         (@arg SIZE: +required {is_int}
          "The amount of data to put (in GB)")
         (@arg HYPERCALL: -h --hyperv

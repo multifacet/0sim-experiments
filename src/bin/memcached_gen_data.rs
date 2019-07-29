@@ -58,7 +58,13 @@ fn run<C: Clock>(
     // Actually put into the kv-store
     for i in 0..nputs {
         // `put`
-        client.set(&format!("{}", i), ZEROS, EXPIRATION)?;
+        let mut res = client.set(&format!("{}", i), ZEROS, EXPIRATION);
+
+        // HACK: Still not sure why things fail. So retry if we failed. That seems to work.
+        while let Err(e) = res {
+            println!("memcached returned error: {}", e);
+            res = client.set(&format!("{}", i), ZEROS, EXPIRATION);
+        }
 
         // periodically print
         if i % PRINT_INTERVAL == 0 {

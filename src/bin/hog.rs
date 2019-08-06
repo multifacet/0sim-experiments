@@ -51,6 +51,9 @@ fn main() {
         addr as *mut u8
     };
 
+    // Notify the world that we are ready.
+    let _ = std::fs::File::create("/tmp/hog_ready").expect("unable to notify");
+
     loop {
         std::thread::sleep(Duration::from_secs(1));
     }

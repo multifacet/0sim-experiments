@@ -40,8 +40,17 @@ fn main() {
             (@arg zeros: -z "Fill pages with zeros")
             (@arg counter: -c "Fill pages with counter values")
         )
+        (@arg STATS_GB: --stats_gb {is_int} +takes_value
+         "Amount of memory used to store stats (in GB).")
     }
     .get_matches();
+
+    // How much memory for stats.
+    let stats_gb = if let Some(gbs) = matches.value_of("STATS_GB") {
+        gbs.parse::<usize>().unwrap()
+    } else {
+        16
+    };
 
     // How many pages to touch?
     let npages = matches
@@ -50,9 +59,10 @@ fn main() {
         .to_string()
         .parse::<usize>()
         .unwrap();
+    let npages = npages - (stats_gb << 18); // subtract out space for stats
 
     // How many times to record stats (each measurement is 8B, 1GB total)?
-    let nstats = (1 << 30) / 8;
+    let nstats = (stats_gb << 30) / 8;
 
     // Frequency of recording stats (measure every freq-th operation).
     let freq = if npages < nstats {

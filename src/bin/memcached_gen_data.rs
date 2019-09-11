@@ -63,6 +63,14 @@ fn run<C: Clock>(
         // HACK: Still not sure why things fail. So retry if we failed. That seems to work.
         while let Err(e) = res {
             println!("memcached returned error: {}", e);
+
+            match e {
+                MemcacheError::Io(ref err) if err.kind() == std::io::ErrorKind::BrokenPipe => {
+                    return Err(e)
+                }
+                _ => {}
+            }
+
             res = client.set(&format!("{}", i), ZEROS, EXPIRATION);
         }
 

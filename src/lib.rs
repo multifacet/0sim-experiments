@@ -1,6 +1,6 @@
 //! Some utilities for experiments. These are mostly wrappers around libc.
 
-#![feature(asm, maybe_uninit_ref)]
+#![feature(llvm_asm, maybe_uninit_ref)]
 
 /// The host elapsed time hypercall number.
 const HV_GET_HOST_ELAPSED: u64 = 0x9;
@@ -21,7 +21,7 @@ pub fn vmcall_host_elapsed() -> u64 {
     let lo: u32;
 
     unsafe {
-        asm!("
+        llvm_asm!("
 		mov $$0, %edx
 		vmcall"
 		: "={eax}"(lo), "={edx}"(hi)
@@ -37,7 +37,7 @@ pub fn vmcall_host_elapsed() -> u64 {
 #[inline(always)]
 pub fn vmcall_nop() {
     unsafe {
-        asm!("
+        llvm_asm!("
 		vmcall"
 		:
 		: "{eax}"(HV_NOP)
@@ -50,7 +50,7 @@ pub fn vmcall_nop() {
 #[inline(always)]
 pub fn vmcall_calibrate(too_low: bool) {
     unsafe {
-        asm!("
+        llvm_asm!("
 		vmcall"
 		:
 		: "{eax}"(HV_CALIBRATE), "{rbx}"(if too_low { 1 } else { 0 })
@@ -63,7 +63,7 @@ pub fn vmcall_calibrate(too_low: bool) {
 #[inline(always)]
 pub fn vmcall_pf_time(pf_time: u64) {
     unsafe {
-        asm!("
+        llvm_asm!("
 		vmcall"
 		:
 		: "{eax}"(HV_PF_TIME), "{rbx}"(pf_time)

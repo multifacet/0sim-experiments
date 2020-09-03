@@ -138,7 +138,7 @@ pub fn trigger_compaction(n: u16) -> Result<(), std::io::Error> {
 pub fn set_cpu(core: usize) {
     unsafe {
         let mut cpuset = std::mem::MaybeUninit::<libc::cpu_set_t>::uninit();
-        libc::CPU_ZERO(cpuset.get_mut());
+        libc::CPU_ZERO(cpuset.assume_init_mut());
         let mut cpuset = cpuset.assume_init();
         libc::CPU_SET(core, &mut cpuset);
 

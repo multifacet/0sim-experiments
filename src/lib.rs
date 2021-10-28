@@ -1,18 +1,18 @@
 //! Some utilities for experiments. These are mostly wrappers around libc.
 
-#![feature(llvm_asm, maybe_uninit_ref)]
+#![feature(asm)]
 
 /// The host elapsed time hypercall number.
-const HV_GET_HOST_ELAPSED: u64 = 0x9;
+const HV_GET_HOST_ELAPSED: u32 = 0x9;
 
 /// The host nop hypercall number.
-const HV_NOP: u64 = 0xA;
+const HV_NOP: u32 = 0xA;
 
 /// The host elapsed time calibration hypercall number.
-const HV_CALIBRATE: u64 = 0xB;
+const HV_CALIBRATE: u32 = 0xB;
 
 /// The host elapsed time calibration hypercall number.
-const HV_PF_TIME: u64 = 0xC;
+const HV_PF_TIME: u32 = 0xC;
 
 /// Run the `vmcall 0x0009` instruction and return the value
 #[inline(always)]
@@ -21,13 +21,12 @@ pub fn vmcall_host_elapsed() -> u64 {
     let lo: u32;
 
     unsafe {
-        llvm_asm!("
-		mov $$0, %edx
-		vmcall"
-		: "={eax}"(lo), "={edx}"(hi)
-		: "{eax}"(HV_GET_HOST_ELAPSED)
-		:
-		: "volatile");
+        asm!(
+            "mov edx, eax
+             vmcall",
+             inout("eax") HV_GET_HOST_ELAPSED => lo,
+             out("edx") hi,
+        );
     }
 
     lo as u64 | ((hi as u64) << 32)
@@ -37,25 +36,24 @@ pub fn vmcall_host_elapsed() -> u64 {
 #[inline(always)]
 pub fn vmcall_nop() {
     unsafe {
-        llvm_asm!("
-		vmcall"
-		:
-		: "{eax}"(HV_NOP)
-		:
-		: "volatile");
+        asm!("vmcall", in("eax") HV_NOP);
     }
 }
 
 /// Run the `vmcall 0x000B` instruction and with the given value
 #[inline(always)]
 pub fn vmcall_calibrate(too_low: bool) {
+    let too_low = if too_low { 1 } else { 0 };
     unsafe {
-        llvm_asm!("
-		vmcall"
-		:
-		: "{eax}"(HV_CALIBRATE), "{rbx}"(if too_low { 1 } else { 0 })
-		:
-		: "volatile");
+        asm!("
+            push rbx
+            mov rbx, {:r}
+            vmcall
+            pop rbx
+            ",
+            in(reg) too_low,
+            in("eax") HV_CALIBRATE,
+        );
     }
 }
 
@@ -63,12 +61,14 @@ pub fn vmcall_calibrate(too_low: bool) {
 #[inline(always)]
 pub fn vmcall_pf_time(pf_time: u64) {
     unsafe {
-        llvm_asm!("
-		vmcall"
-		:
-		: "{eax}"(HV_PF_TIME), "{rbx}"(pf_time)
-		:
-		: "volatile");
+        asm!("
+            push rbx
+            mov rbx, {}
+            vmcall
+            pop rbx",
+            in(reg) pf_time,
+            in("eax") HV_PF_TIME,
+        );
     }
 }
 

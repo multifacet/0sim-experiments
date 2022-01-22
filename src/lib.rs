@@ -1,6 +1,6 @@
 //! Some utilities for experiments. These are mostly wrappers around libc.
 
-#![feature(asm)]
+use std::arch::asm;
 
 /// The host elapsed time hypercall number.
 const HV_GET_HOST_ELAPSED: u32 = 0x9;
